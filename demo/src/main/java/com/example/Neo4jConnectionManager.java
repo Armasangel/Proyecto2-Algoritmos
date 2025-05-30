@@ -1,41 +1,41 @@
 package com.example;
 
-import org.neo4j.driver.*;
+import org.neo4j.driver.AuthTokens;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.Session;
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
+import org.neo4j.driver.Result;
 
-public class Neo4jConnectionManager implements AutoCloseable {
+public class Neo4jConnectionManager {
     private final Driver driver;
-     
-    public Neo4jConnectionManager(String uri, String user, String password) {
-        this.driver = GraphDatabase.driver(uri, AuthTokens.basic(user, password));
+
+    public Neo4jConnectionManager() {
+        this("bolt://localhost:7687", "neo4j", "12345678");
     }
-    
-    public Session getSession() {
-        return driver.session();
+
+    public Neo4jConnectionManager(String uri, String usuario, String contraseña) {
+        driver = GraphDatabase.driver(uri, AuthTokens.basic(usuario, contraseña));
     }
-    
-    public boolean testConnection() {
+
+    public void cerrar() {
+        driver.close();
+    }
+
+    public void probarConexion() {
         try (Session session = driver.session()) {
-            session.run("RETURN 1").consume();
-            return true;
-        } catch (Exception e) {
-            System.err.println("Error al conectar con Neo4j: " + e.getMessage());
-            return false;
+            String saludo = session.run("RETURN '¡Hola desde Neo4j!'").single().get(0).asString();
+            System.out.println(saludo);
         }
     }
-    
-    @Override
-    public void close() {
-        if (driver != null) {
-            driver.close();
-        }
-    }
-    
+
     public Result executeQuery(String query, Value parameters) {
         try (Session session = driver.session()) {
             return session.run(query, parameters);
         }
     }
-    
+
     public Result executeQuery(String query) {
         return executeQuery(query, Values.parameters());
     }
