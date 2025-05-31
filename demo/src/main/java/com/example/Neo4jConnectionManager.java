@@ -12,7 +12,7 @@ public class Neo4jConnectionManager {
     private final Driver driver;
 
     public Neo4jConnectionManager() {
-        this("bolt://localhost:7687", "neo4j", "12345678");
+        this("neo4j+s://6bc72245.databases.neo4j.io", "neo4j", "20z23qOU77VA4J4Em7y5D-0uMFc6f87tB5Q8upJSTsk");
     }
 
     public Neo4jConnectionManager(String uri, String usuario, String contraseña) {
@@ -31,12 +31,16 @@ public class Neo4jConnectionManager {
     }
 
     public Result executeQuery(String query, Value parameters) {
-        try (Session session = driver.session()) {
-            return session.run(query, parameters);
-        }
+    Session session = driver.session();
+    return session.run(query, parameters);
+    // Nota: Ahora el llamador es responsable de cerrar la sesión
     }
 
     public Result executeQuery(String query) {
         return executeQuery(query, Values.parameters());
+    }
+
+    public Driver getDriver() {
+        return driver;
     }
 }
