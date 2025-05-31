@@ -23,52 +23,58 @@ public class PersonalRecommenderService {
     }
 
     private void initializeCategoryMaps() {
-        // Obtener juegos por género
-        Result genreResult = connectionManager.executeQuery(
+        // Juegos por género
+        Session genreSession = connectionManager.getDriver().session();
+        Result genreResult = genreSession.run(
             "MATCH (game:Videojuego)-[:BELONGS_TO_GENRE]->(genre:Genre) " +
-            "RETURN game.id as gameId, game.nombre as gameName, genre.name as genreName"
+            "RETURN game.nombre as gameName, genre.name as genreName"
         );
-        
+    
         while (genreResult.hasNext()) {
             Record record = genreResult.next();
-            String gameId = record.get("gameId").asString();
+            String gameName = record.get("gameName").asString();
             String genreName = record.get("genreName").asString();
-            
-            genreGamesMap.computeIfAbsent(genreName, k -> new HashSet<>()).add(gameId);
+        
+            genreGamesMap.computeIfAbsent(genreName, k -> new HashSet<>()).add(gameName);
         }
-        
-        // Obtener juegos por plataforma
-        Result platformResult = connectionManager.executeQuery(
+        genreSession.close();
+    
+        // Juegos por plataforma
+        Session platformSession = connectionManager.getDriver().session();
+        Result platformResult = platformSession.run(
             "MATCH (game:Videojuego)-[:AVAILABLE_ON]->(platform:Platform) " +
-            "RETURN game.id as gameId, platform.name as platformName"
+            "RETURN platform.name as platformName"
         );
-        
+    
         while (platformResult.hasNext()) {
             Record record = platformResult.next();
-            String gameId = record.get("gameId").asString();
+            String gameName = record.get("gameName").asString();
             String platformName = record.get("platformName").asString();
-            
-            platformGamesMap.computeIfAbsent(platformName, k -> new HashSet<>()).add(gameId);
+        
+            platformGamesMap.computeIfAbsent(platformName, k -> new HashSet<>()).add(gameName);
         }
-        
-        // Obtener juegos por desarrollador
-        Result developerResult = connectionManager.executeQuery(
+        platformSession.close();
+    
+        // Juegos por desarrollador
+        Session developerSession = connectionManager.getDriver().session();
+        Result developerResult = developerSession.run(
             "MATCH (game:Videojuego)-[:DEVELOPED_BY]->(developer:Developer) " +
-            "RETURN game.id as gameId, developer.name as developerName"
+            "RETURN developer.name as developerName"
         );
-        
+    
         while (developerResult.hasNext()) {
             Record record = developerResult.next();
-            String gameId = record.get("gameId").asString();
+            String gameName = record.get("gameName").asString();
             String developerName = record.get("developerName").asString();
-            
-            developerGamesMap.computeIfAbsent(developerName, k -> new HashSet<>()).add(gameId);
+        
+            developerGamesMap.computeIfAbsent(developerName, k -> new HashSet<>()).add(gameName);
         }
+        developerSession.close();
     }
 
-    public List<Recomendacion> recommendGamesByGame(String baseGameId, int maxRecommendations) {
+    public List<Recomendacion> recommendGamesByGame(String tituloJuego, int maxRecommendations) {
         // Buscar el juego base
-        Value baseGameNode = findGameNode(baseGameId);
+        Value baseGameNode = findGameNode(tituloJuego);
         if (baseGameNode == null) {
             System.out.println("Juego base no encontrado en la base de datos");
             return Collections.emptyList();
@@ -87,12 +93,11 @@ public class PersonalRecommenderService {
             
             // Actualizar puntuaciones
             for (Map<String, Object> gameInfo : gamesWithAttribute) {
-                String gameId = (String) gameInfo.get("id");
                 String gameName = (String) gameInfo.get("nombre");
                 
-                if (!gameId.equals(baseGameId)) {
-                    gameScores.put(gameId, gameScores.getOrDefault(gameId, 0) + 1);
-                    gameNames.put(gameId, gameName);
+                if (!gameName.equals(tituloJuego)) {
+                    gameScores.put(gameName, gameScores.getOrDefault(gameName, 0) + 1);
+                    gameNames.put(gameName, gameName);
                 }
             }
         }
@@ -169,7 +174,6 @@ public class PersonalRecommenderService {
         // Procesar resultados
         while (result.hasNext()) {
             Record record = result.next();
-            String gameId = record.get("gameId").asString();
             String gameName = record.get("gameName").asString();
             
             // Calcular puntuación basada en cuántos criterios cumple
@@ -177,20 +181,20 @@ public class PersonalRecommenderService {
             
             // Verificar coincidencias de género
             for (String genre : preferredGenres) {
-                if (genreGamesMap.getOrDefault(genre, Collections.emptySet()).contains(gameId)) {
+                if (genreGamesMap.getOrDefault(genre, Collections.emptySet()).contains(gameName)) {
                     score += 2; // Mayor peso a coincidencias de género
                 }
             }
             
             // Verificar coincidencias de plataforma
             for (String platform : preferredPlatforms) {
-                if (platformGamesMap.getOrDefault(platform, Collections.emptySet()).contains(gameId)) {
+                if (platformGamesMap.getOrDefault(platform, Collections.emptySet()).contains(gameName)) {
                     score += 1; // Menor peso a coincidencias de plataforma
                 }
             }
             
-            gameScores.put(gameId, score);
-            gameNames.put(gameId, gameName);
+            gameScores.put(gameName, score);
+            gameNames.put(gameName, gameName);
         }
         
         // Convertir a lista de recomendaciones
@@ -244,21 +248,21 @@ public class PersonalRecommenderService {
         
         String query = 
             "MATCH (user:User {id: $userId})-[:PLAYED|LIKES]->(game:Videojuego) " +
-            "RETURN DISTINCT game.id as gameId";
+            "RETURN DISTINCT game.name as gameName";
         
         Result result = connectionManager.executeQuery(query, Values.parameters("userId", userId));
         
         while (result.hasNext()) {
-            games.add(result.next().get("gameId").asString());
+            games.add(result.next().get("gameName").asString());
         }
         
         return games;
     }
 
-    private Value findGameNode(String gameId) {
+    private Value findGameNode(String gameName) {
         Result result = connectionManager.executeQuery(
-            "MATCH (game:Videojuego {id: $id}) RETURN game",
-            Values.parameters("id", gameId)
+            "MATCH (game:Videojuego {name: $name}) RETURN game",
+            Values.parameters("name", gameName)
         );
         
         if (result.hasNext()) {
@@ -272,9 +276,9 @@ public class PersonalRecommenderService {
         
         Result result = connectionManager.executeQuery(
             "MATCH (game:Videojuego)-[r]-(attribute) " +
-            "WHERE ID(game) = $gameId " +
+            "WHERE NAME(game) = $gameName " +
             "RETURN type(r) as relationType, attribute",
-            Values.parameters("gameId", gameNode.asNode().id())
+            Values.parameters("gameName", gameNode.asNode().id())
         );
         
         while (result.hasNext()) {
@@ -313,4 +317,29 @@ public class PersonalRecommenderService {
             System.out.println((i+1) + ". " + rec.getJuegoNombre() + " (Puntuación: " + rec.getPuntuacion() + ")");
         }
     }
+
+    public List<Recomendacion> recommendGamesByGenre(String genero, int maxRecommendations) {
+    String query = "MATCH (game:Videojuego)-[:BELONGS_TO_GENRE]->(genre:Genre {name: $genero}) " +
+                   "RETURN game.titulo as titulo, game.puntajeCritica as puntaje " +
+                   "ORDER BY game.puntajeCritica DESC " +
+                   "LIMIT $limit";
+    
+    Result result = connectionManager.executeQuery(query, 
+        Values.parameters("genero", genero, "limit", maxRecommendations));
+    
+    List<Recomendacion> recomendaciones = new ArrayList<>();
+    while (result.hasNext()) {
+        Record record = result.next();
+        String titulo = record.get("titulo").asString();
+        double puntaje = record.get("puntaje").asDouble();
+        
+        recomendaciones.add(new Recomendacion(
+            titulo, 
+            titulo, 
+            (int)(puntaje * 10), // Convertir a escala de 0-100
+            Recomendacion.TipoRecomendacion.PERSONAL));
+    }
+    
+    return recomendaciones;
+}
 }
