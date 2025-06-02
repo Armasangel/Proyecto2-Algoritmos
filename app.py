@@ -3,7 +3,7 @@ from flask_cors import CORS
 from config import Config
 from neo4j_connection import Neo4jConnectionManager
 from personal_recommender import PersonalRecommenderService
-from collaborative_recommender import CollaborativeRecommenderService
+from collaborative_recomendation import CollaborativeRecommenderService
 from utils import handle_errors, setup_logging
 import logging
 
@@ -37,8 +37,7 @@ except Exception as e:
 
 @app.route('/')
 def index():
-    """Página principal"""
-    return render_template('index.html')
+    return render_template('game_recommender_index.html')
 
 @app.route('/api/recommend/by-game', methods=['POST'])
 @handle_errors

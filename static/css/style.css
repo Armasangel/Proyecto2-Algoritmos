@@ -1,0 +1,16 @@
+/* Contenido MÍNIMO para verificar que funciona */
+body {
+    background-color: #f0f8ff;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+h1 {
+    color: #ff5733;
+    text-align: center;
+}
+
+p {
+    color: #333;
+    font-size: 18px;
+}

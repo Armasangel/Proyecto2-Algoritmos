@@ -4,10 +4,10 @@ import logging
 from models import Recommendation, RecommendationType, VideoGame
 from neo4j_connection import Neo4jConnectionManager
 
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
 
 class PersonalRecommenderService:
-    def _init_(self, vgsales_connection: Neo4jConnectionManager, videogames_connection: Neo4jConnectionManager):
+    def __init__(self, vgsales_connection: Neo4jConnectionManager, videogames_connection: Neo4jConnectionManager):
         self.vgsales_conn = vgsales_connection
         self.videogames_conn = videogames_connection
         self.genre_games_map = defaultdict(set)
